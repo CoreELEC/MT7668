@@ -80,8 +80,9 @@
 #include "gl_kal.h"
 #endif
 #include "gl_vendor.h"
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 9, 269))
 #include <uapi/linux/sched/types.h>
-
+#endif
 /*******************************************************************************
 *                              C O N S T A N T S
 ********************************************************************************

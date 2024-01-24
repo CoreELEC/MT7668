@@ -3486,7 +3486,7 @@ UINT_32 kalGetTxPendingCmdCount(IN P_GLUE_INFO_T prGlueInfo)
 */
 /*----------------------------------------------------------------------------*/
 
-#if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 9, 0))
 void (*prTimerHandlerHack)(unsigned long);
 
 static void prTimerHandlerWrapper(struct timer_list *timer)
@@ -5078,7 +5078,7 @@ UINT_64 kalGetBootTime(void)
 {
 	UINT_64 bootTime = 0;
 
-#if KERNEL_VERSION(2, 6, 39) <= LINUX_VERSION_CODE
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
 	struct timespec64 ts;
 	ktime_get_boottime_ts64(&ts);
 	bootTime = (ts.tv_sec * 1000000) + ts.tv_nsec / 1000;
