@@ -111,8 +111,9 @@ typedef struct _WLANDEV_INFO_T {
 
 MODULE_AUTHOR(NIC_AUTHOR);
 MODULE_DESCRIPTION(NIC_DESC);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 78))
 MODULE_SUPPORTED_DEVICE(NIC_NAME);
-
+#endif
 /* MODULE_LICENSE("MTK Propietary"); */
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -370,7 +371,9 @@ static struct cfg80211_ops mtk_wlan_ops = {
 	.cancel_remain_on_channel = mtk_cfg80211_cancel_remain_on_channel,
 	.mgmt_tx = mtk_cfg80211_mgmt_tx,
 	/* .mgmt_tx_cancel_wait        = mtk_cfg80211_mgmt_tx_cancel_wait, */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 	.mgmt_frame_register = mtk_cfg80211_mgmt_frame_register,
+#endif
 
 #ifdef CONFIG_NL80211_TESTMODE
 	.testmode_cmd = mtk_cfg80211_testmode_cmd,

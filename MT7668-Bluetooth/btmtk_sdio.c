@@ -328,12 +328,35 @@ typedef bool (*pcheck_wlan_reset_state) (void);
 static pcheck_wlan_reset_state pf_check_wlan_rst_state;
 #endif
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(5,7,0))
+static void *get_symbol_addr(const char *symbol_name)
+{
+	struct kprobe kp = {0};
+	int ret;
+
+	kp.symbol_name = symbol_name;
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
+		return NULL;
+	}
+	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
+	unregister_kprobe(&kp);
+
+	return kp.addr;
+}
+#endif
 
 static unsigned long btmtk_sdio_kallsyms_lookup_name(const char *name)
 {
 	unsigned long ret = 0;
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(5,7,0))
+	ret = get_symbol_addr(name);
+#else
 	ret = kallsyms_lookup_name(name);
+#endif
 	if (ret) {
 #ifdef CONFIG_ARM
 #ifdef CONFIG_THUMB2_KERNEL
@@ -851,6 +874,13 @@ static int btmtk_sdio_readl(u32 offset,  u32 *val)
 	sdio_release_host(g_card->func);
 	return ret;
 }
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(5,4,210))
+struct timeval {
+	__kernel_old_time_t	tv_sec;		/* seconds */
+	__kernel_suseconds_t	tv_usec;	/* microseconds */
+};
+#endif
 
 static void btmtk_sdio_do_gettimeofday(struct timeval *tv)
 {

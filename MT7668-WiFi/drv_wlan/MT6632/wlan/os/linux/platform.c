@@ -317,15 +317,19 @@ static int nvram_read(char *filename, char *buf, ssize_t len, int offset)
 	struct file *fd;
 	int retLen = -1;
 
+#ifdef get_fs
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
 
+#endif
 	fd = filp_open(filename, O_RDONLY, 0644);
 
 	if (IS_ERR(fd)) {
 		DBGLOG(INIT, INFO, "[nvram_read] : failed to open!!\n");
+#ifdef get_fs
 		set_fs(old_fs);
+#endif
 		return -1;
 	}
 
@@ -352,7 +356,9 @@ static int nvram_read(char *filename, char *buf, ssize_t len, int offset)
 
 	filp_close(fd, NULL);
 
+#ifdef get_fs
 	set_fs(old_fs);
+#endif
 
 	return retLen;
 
@@ -382,15 +388,18 @@ static int nvram_write(char *filename, char *buf, ssize_t len, int offset)
 	struct file *fd;
 	int retLen = -1;
 
+#ifdef get_fs
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
-
+#endif
 	fd = filp_open(filename, O_WRONLY | O_CREAT, 0644);
 
 	if (IS_ERR(fd)) {
 		DBGLOG(INIT, INFO, "[nvram_write] : failed to open!!\n");
+#ifdef get_fs
 		set_fs(old_fs);
+#endif
 		return -1;
 	}
 
@@ -417,7 +426,9 @@ static int nvram_write(char *filename, char *buf, ssize_t len, int offset)
 
 	filp_close(fd, NULL);
 
+#ifdef get_fs
 	set_fs(old_fs);
+#endif
 
 	return retLen;
 

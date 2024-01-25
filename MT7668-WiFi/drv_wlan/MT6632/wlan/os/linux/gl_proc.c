@@ -207,9 +207,9 @@ static ssize_t procCsiDataPrepare(UINT_8 *buf, struct CSI_DATA_T *prCsiData)
 	i4Pos = sizeof(rProcCsiData);
 	kalMemCopy(buf, &rProcCsiData, i4Pos);
 
-	kalMemCopy(&buf[i4Pos], prCsiData->ac2IData, prCsiData->u2DataCount * sizeof(INT_16));
+	kalMemCopy(&buf[i4Pos], prCsiData->ac2IData, sizeof(prCsiData->ac2IData));
 	i4Pos += prCsiData->u2DataCount * sizeof(INT_16);
-	kalMemCopy(&buf[i4Pos], prCsiData->ac2QData, prCsiData->u2DataCount * sizeof(INT_16));
+	kalMemCopy(&buf[i4Pos], prCsiData->ac2QData, sizeof(prCsiData->ac2QData));
 	i4Pos += prCsiData->u2DataCount * sizeof(INT_16);
 
 	return i4Pos;
@@ -554,10 +554,8 @@ static ssize_t procDriverCmdWrite(struct file *file, const char __user *buffer,
 
 
 	kalMemSet(g_aucProcBuf, 0, u4CopySize);
-	if (u4CopySize >= (count+1))
+	if (u4CopySize > count)
 		u4CopySize = count;
-	else
-		u4CopySize -= 1;
 
 	if (copy_from_user(g_aucProcBuf, buffer, u4CopySize)) {
 		DBGLOG(INIT, ERROR, "error of copy from user\n");
@@ -586,10 +584,8 @@ static ssize_t procDbgLevelWrite(struct file *file, const char __user *buffer,
 	UINT_32 u4CopySize = sizeof(g_aucProcBuf);
 
 	kalMemSet(g_aucProcBuf, 0, u4CopySize);
-	if (u4CopySize >= count+1)
+	if (u4CopySize > count)
 		u4CopySize = count;
-	else
-		u4CopySize -= 1;
 
 	if (copy_from_user(g_aucProcBuf, buffer, u4CopySize)) {
 		DBGLOG(INIT, ERROR, "error of copy from user\n");

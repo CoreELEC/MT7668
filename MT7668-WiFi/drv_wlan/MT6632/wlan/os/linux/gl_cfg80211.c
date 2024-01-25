@@ -2714,13 +2714,15 @@ mtk_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev, const 
 
 	if (params == NULL)
 		return 0;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 78))
 	else if (params->supported_rates == NULL)
 		return 0;
-
+#endif
 	/* init */
 	kalMemZero(&rCmdUpdate, sizeof(rCmdUpdate));
 	kalMemCopy(rCmdUpdate.aucPeerMac, mac, 6);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 78))
 	if (params->supported_rates != NULL) {
 
 		u4Temp = params->supported_rates_len;
@@ -2729,7 +2731,7 @@ mtk_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev, const 
 		kalMemCopy(rCmdUpdate.aucSupRate, params->supported_rates, u4Temp);
 		rCmdUpdate.u2SupRateLen = u4Temp;
 	}
-
+#endif
 	/*
 	 * In supplicant, only recognize WLAN_EID_QOS 46, not 0xDD WMM
 	 * So force to support UAPSD here.
@@ -2748,6 +2750,7 @@ mtk_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev, const 
 		rCmdUpdate.u2ExtCapLen = u4Temp;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 78))
 	if (params->ht_capa != NULL) {
 
 		rCmdUpdate.rHtCap.u2CapInfo = params->ht_capa->cap_info;
@@ -2768,7 +2771,7 @@ mtk_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev, const 
 		/* rCmdUpdate.rVHtCap */
 		/* rCmdUpdate.rVHtCap */
 	}
-
+#endif
 	/* update a TDLS peer record */
 	/* sanity check */
 	if ((params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))

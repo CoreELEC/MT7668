@@ -79,6 +79,10 @@
 #endif
 #include <linux/ctype.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
+
 /*******************************************************************************
 *                              C O N S T A N T S
 ********************************************************************************
@@ -1068,8 +1072,13 @@ kalIndicateStatusAndComplete(IN P_GLUE_INFO_T prGlueInfo, IN WLAN_STATUS eStatus
 
 				#if KERNEL_VERSION(4, 14, 0) <= CFG80211_VERSION_CODE
 				memset(&roam_info, 0, sizeof(struct cfg80211_roam_info));
+				#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 78)
+				roam_info.links[0].channel = prChannel;
+				roam_info.links[0].bssid = arBssid;
+				#else
 				roam_info.channel = prChannel;
 				roam_info.bssid = arBssid;
+				#endif
 				roam_info.req_ie = prGlueInfo->aucReqIe;
 				roam_info.req_ie_len = prGlueInfo->u4ReqIeLength;
 				roam_info.resp_ie = prGlueInfo->aucRspIe;
@@ -3132,11 +3141,15 @@ static int idme_get_mac_addr(unsigned char *mac_addr, size_t addr_len)
 		return -1;
 	}
 
+#ifdef get_fs
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
+#endif
 	f->f_op->read(f, buf, IFHWADDRLEN * 2, &f->f_pos);
 	filp_close(f, NULL);
+#ifdef get_fs
 	set_fs(old_fs);
+#endif
 
 	if (strlen(buf) != IFHWADDRLEN * 2)
 		goto bailout;
@@ -4045,10 +4058,14 @@ struct file *kalFileOpen(const char *path, int flags, int rights)
 	mm_segment_t oldfs;
 	int err = 0;
 
+#ifdef get_fs
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
+#endif
 	filp = filp_open(path, flags, rights);
+#ifdef get_fs
 	set_fs(oldfs);
+#endif
 	if (IS_ERR(filp)) {
 		err = PTR_ERR(filp);
 		return NULL;
@@ -4066,12 +4083,16 @@ UINT_32 kalFileRead(struct file *file, unsigned long long offset, unsigned char 
 	mm_segment_t oldfs;
 	int ret;
 
+#ifdef get_fs
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
+#endif
 
 	ret = kernel_read(file, data, size, &offset);
 
+#ifdef get_fs
 	set_fs(oldfs);
+#endif
 	return ret;
 }
 
@@ -4080,12 +4101,16 @@ UINT_32 kalFileWrite(struct file *file, unsigned long long offset, unsigned char
 	mm_segment_t oldfs;
 	int ret;
 
+#ifdef get_fs
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
+#endif
 
 	ret = kernel_write(file, data, size, &offset);
 
+#ifdef get_fs
 	set_fs(oldfs);
+#endif
 	return ret;
 }
 
@@ -4856,11 +4881,13 @@ static int __mt_find_tracing_mark_write_symbol_fn(void *prData, const char *pcNa
 	return 0;
 }
 
+#ifdef CONFIG_LIVEPATCH
 static inline void __mt_update_tracing_mark_write_addr(void)
 {
 	if (unlikely(tracing_mark_write_addr == 0))
 		kallsyms_on_each_symbol(__mt_find_tracing_mark_write_symbol_fn, NULL);
 }
+#endif
 
 VOID kalMetTagPacket(IN P_GLUE_INFO_T prGlueInfo, IN P_NATIVE_PACKET prPacket, IN ENUM_TX_PROFILING_TAG_T eTag)
 {
@@ -4871,7 +4898,9 @@ VOID kalMetTagPacket(IN P_GLUE_INFO_T prGlueInfo, IN P_NATIVE_PACKET prPacket, I
 	case TX_PROF_TAG_OS_TO_DRV:
 		if (kalMetCheckProfilingPacket(prGlueInfo, prPacket)) {
 			/* trace_printk("S|%d|%s|%d\n", current->pid, "WIFI-CHIP", GLUE_GET_PKT_IP_ID(prPacket)); */
+#ifdef CONFIG_LIVEPATCH
 			__mt_update_tracing_mark_write_addr();
+#endif
 #if 0				/* #ifdef CONFIG_TRACING */          /* #if CFG_MET_PACKET_TRACE_SUPPORT */
 			event_trace_printk(tracing_mark_write_addr, "S|%d|%s|%d\n", current->tgid, "WIFI-CHIP",
 					   GLUE_GET_PKT_IP_ID(prPacket));
@@ -4883,7 +4912,9 @@ VOID kalMetTagPacket(IN P_GLUE_INFO_T prGlueInfo, IN P_NATIVE_PACKET prPacket, I
 	case TX_PROF_TAG_DRV_TX_DONE:
 		if (GLUE_GET_PKT_IS_PROF_MET(prPacket)) {
 			/* trace_printk("F|%d|%s|%d\n", current->pid, "WIFI-CHIP", GLUE_GET_PKT_IP_ID(prPacket)); */
+#ifdef CONFIG_LIVEPATCH
 			__mt_update_tracing_mark_write_addr();
+#endif
 #if 0				/* #ifdef CONFIG_TRACING */          /* #if CFG_MET_PACKET_TRACE_SUPPORT */
 			event_trace_printk(tracing_mark_write_addr, "F|%d|%s|%d\n", current->tgid, "WIFI-CHIP",
 					   GLUE_GET_PKT_IP_ID(prPacket));
