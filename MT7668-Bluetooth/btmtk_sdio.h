@@ -17,9 +17,9 @@
 #if ((SUPPORT_UNIFY_WOBLE & SUPPORT_ANDROID) || SUPPORT_EINT)
 #include <linux/wakelock.h>
 #endif
+#include <linux/mmc/card.h>
 
-
-#define VERSION "v0.0.0.53_2018072701_YOCTO"
+#define VERSION "v0.0.1.00_2022121401"
 
 #define SDIO_HEADER_LEN                 4
 
@@ -72,6 +72,10 @@
 #define FIRMWARE_READY                          0xfedc
 #define CFG_THREE_IN_ONE_FIRMWARE               0
 
+#define BTMTK_RESET_DOING 1
+#define BTMTK_RESET_DONE 0
+
+
 
 #if CFG_THREE_IN_ONE_FIRMWARE
 #define BUILD_SIGN(ch0, ch1, ch2, ch3) \
@@ -96,6 +100,15 @@ struct _FIRMWARE_HEADER_T {
 	struct _FW_SECTION_T arSection[];
 };
 #endif
+
+enum bt_sdio_dongle_state {
+	BT_SDIO_DONGLE_STATE_UNKNOWN,
+	BT_SDIO_DONGLE_STATE_POWER_ON,
+	BT_SDIO_DONGLE_STATE_POWER_OFF,
+	BT_SDIO_DONGLE_STATE_WOBLE,
+	BT_SDIO_DONGLE_STATE_FW_DUMP,
+	BT_SDIO_DONGLE_STATE_ERROR
+};
 
 struct btmtk_sdio_card_reg {
 	u8 cfg;
@@ -184,7 +197,10 @@ struct btmtk_sdio_card {
 	unsigned int wobt_irq;
 	int wobt_irqlevel;
 	atomic_t irq_enable_count;
+	struct input_dev *WoBLEInputDev;
 #endif
+
+	enum	     bt_sdio_dongle_state dongle_state;
 };
 struct btmtk_sdio_device {
 	const char *helper;
@@ -208,6 +224,7 @@ struct _PATCH_HEADER {
 
 #define HW_VERSION 0x80000000
 #define FW_VERSION 0x80000004
+#define CHIP_ID 0x80000008
 
 /*common register address*/
 #define CHLPCR 0x0004
@@ -217,7 +234,7 @@ struct _PATCH_HEADER {
 #define CHIER  0x0014
 #define CTDR   0x0018
 #define CRDR   0x001C
-
+#define SWPCDBGR   0x0154
 /*CHLPCR*/
 #define C_FW_INT_EN_SET            0x00000001
 #define C_FW_INT_EN_CLEAR        0x00000002
@@ -249,7 +266,7 @@ struct _PATCH_HEADER {
 
 #define DEFAULE_PATCH_FRAG_SIZE    1000
 
-#define PATCH_IS_DOWNLOAD_BT_OTHER 0
+#define PATCH_IS_DOWNLOAD_BY_OTHER 0
 #define PATCH_READY 1
 #define PATCH_NEED_DOWNLOAD 2
 
@@ -262,6 +279,12 @@ struct _PATCH_HEADER {
  * "01 " need three bytes.
  */
 #define HCI_MAX_COMMAND_BUF_SIZE	(HCI_MAX_COMMAND_SIZE * 3)
+
+/* whole chip rst ready flag */
+#define COREDUMP_START 0x00
+#define COREDUMP_END 0x01
+#define NOTIFY_WLAN_REMOVE_START 0x02
+
 
 /*
  * data event:
@@ -287,10 +310,10 @@ struct _PATCH_HEADER {
 #define ALIGN_ADDR(p, a)        \
 		((((unsigned long)(p)) + (((unsigned long)(a)) - 1)) & \
 		~(((unsigned long)(a)) - 1))
-struct sk_buff *btmtk_create_send_data(struct sk_buff *skb);
+
 int btmtk_print_buffer_conent(u8 *buf, u32 Datalen);
-u32 lock_unsleepable_lock(struct _OSAL_UNSLEEPABLE_LOCK_ *pUSL);
-u32 unlock_unsleepable_lock(struct _OSAL_UNSLEEPABLE_LOCK_ *pUSL);
+u32 LOCK_UNSLEEPABLE_LOCK(struct _OSAL_UNSLEEPABLE_LOCK_ *pUSL);
+u32 UNLOCK_UNSLEEPABLE_LOCK(struct _OSAL_UNSLEEPABLE_LOCK_ *pUSL);
 
 extern unsigned char probe_counter;
 extern unsigned char *txbuf;
@@ -312,42 +335,27 @@ enum {
 	BTMTK_SDIO_EVENT_COMPARE_STATE_COMPARE_SUCCESS,
 };
 
+enum {
+	HW_ERR_NONE = 0x00,
+	HW_ERR_CODE_BT_HOST = 0xF0,
+	HW_ERR_CODE_LEGACY_WOBLE = 0xF1,
+	HW_ERR_CODE_CARD_DISC = 0xF2,
+	HW_ERR_CODE_WIFI = 0xF3,
+	HW_ERR_CODE_BT_FW = 0xF4,
+	HW_ERR_CODE_BT_DRIVER = 0xF5,
+};
 
 /**
  * Maximum rom patch file name length
  */
 #define MAX_BIN_FILE_NAME_LEN	32
 
-
-#define COMPARE_FAIL				-1
-#define COMPARE_SUCCESS				1
+#define COMPARE_FAIL			-1
+#define COMPARE_SUCCESS			1
 #define WOBLE_COMP_EVENT_TIMO		5000
-
-/**
- * BTMTK ioctl
- */
-
-#define BTMTK_IOCTL_MAGIC 'k'
-
-#ifdef SUPPORT_BT_STEREO
-#define BTMTK_IOCTL_STEREO_GET_CLK _IOR(BTMTK_IOCTL_MAGIC, 1, void *)
-#define BTMTK_IOCTL_STEREO_SET_PARA _IOW(BTMTK_IOCTL_MAGIC, 2, void *)
-#endif
-
-
-#ifdef SUPPORT_BT_STEREO
-struct bt_stereo_clk {
-	u64 sys_clk;
-	u64 fw_clk;
-};
-
-struct bt_stereo_para {
-	u16 handle;
-	u8 method;
-	u32 period;
-	u16 active_slots;
-};
-#endif
+#define WLAN_STATUS_IS_NOT_LOAD		-1
+#define WLAN_STATUS_DEFAULT		0
+#define WLAN_STATUS_CALL_REMOVE_START	1 /* WIFI driver is inserted */
 
 /**
  * Inline functions
@@ -355,12 +363,38 @@ struct bt_stereo_para {
 static inline int is_support_unify_woble(struct btmtk_sdio_card *data)
 {
 #if SUPPORT_UNIFY_WOBLE
+	if (((data->chip_id & 0xffff) == 0x7668) ||
+		((data->chip_id & 0xffff) == 0x7663))
+		return 1;
+	else
+		return 0;
+#else
+	return 0;
+#endif
+}
+
+static inline int is_mt7668(struct btmtk_sdio_card *data)
+{
+#if SUPPORT_MT7668
 	return ((data->chip_id & 0xffff) == 0x7668);
 #else
 	return 0;
 #endif
 }
 
+static inline int is_mt7663(struct btmtk_sdio_card *data)
+{
+#if SUPPORT_MT7663
+	return ((data->chip_id & 0xffff) == 0x7663);
+#else
+	return 0;
+#endif
+}
 
+#define FW_OWN_OFF "fw own off"
+#define FW_OWN_ON  "fw own on"
+
+extern int sdio_reset_comm(struct mmc_card *card);
+int btmtk_sdio_reset_dongle(void);
 #endif
 

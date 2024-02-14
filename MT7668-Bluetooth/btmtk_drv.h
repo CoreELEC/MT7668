@@ -19,11 +19,10 @@
 #include <linux/slab.h>
 #include <net/bluetooth/bluetooth.h>
 
-#define SAVE_FW_DUMP_IN_KERNEL 0
+#define SAVE_FW_DUMP_IN_KERNEL	1
 
-#define SUPPORT_FW_DUMP 1
+#define SUPPORT_FW_DUMP		1
 #define BTM_HEADER_LEN                  5
-#define BTM_UPLD_SIZE                   2312
 
 #define MTK_TXDATA_SIZE 2000
 #define MTK_RXDATA_SIZE 2000
@@ -41,6 +40,7 @@
 
 #define E2P_MODE	"EfuseBufferModeCal"
 #define BIN_FILE_MODE	'1'
+#define AUTO_MODE		'2'
 #endif
 
 enum rdwr_status {
@@ -65,6 +65,7 @@ struct btmtk_thread {
 	struct task_struct *task;
 	wait_queue_head_t wait_q;
 	void *priv;
+	u8 thread_status;
 };
 
 struct btmtk_device {
@@ -72,7 +73,8 @@ struct btmtk_device {
 	/* struct hci_dev *hcidev; */
 
 	u8 dev_type;
-
+	atomic_t reset_progress;
+	atomic_t reset_dongle;
 	u8 tx_dnld_rdy;
 
 	u8 psmode;
@@ -113,8 +115,11 @@ struct btmtk_private {
 	int (*hw_host_to_card)(struct btmtk_private *priv,
 				u8 *payload, u16 nb);
 
+	void (*start_reset_dongle_progress)(void);
+	int (*hw_sdio_reset_dongle)(void);
 	int (*hw_set_own_back)(int owntype);
 	int (*hw_process_int_status)(struct btmtk_private *priv);
+	void (*hci_snoop_save)(u8 type, u8 *buf, u32 len);
 	void (*firmware_dump)(struct btmtk_private *priv);
 	spinlock_t driver_lock;         /* spinlock used by driver */
 #ifdef CONFIG_DEBUG_FS
@@ -126,6 +131,9 @@ struct btmtk_private {
 	struct task_struct *fw_dump_tsk;
 	struct task_struct *fw_dump_end_check_tsk;
 #endif
+	struct semaphore wr_mtx;
+	struct semaphore rd_mtx;
+	struct semaphore wr_fwlog_mtx;
 	bool no_fw_own;
 };
 
@@ -223,9 +231,13 @@ struct ring_buffer {
 };
 
 #ifdef CONFIG_DEBUG_FS
+
 #define FIXED_STPBT_MAJOR_DEV_ID 111
 
+
+
 #define FW_DUMP_END_EVENT "coredump end"
+
 #endif
 
 #endif

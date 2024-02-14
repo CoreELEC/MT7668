@@ -42,47 +42,51 @@
 #define BTMTK_LOG_LEVEL_DEBUG		4
 #define BTMTK_LOG_LEVEL_DEFAULT		BTMTK_LOG_LEVEL_INFO	/* default setting */
 
-#if defined(CONFIG_DEBUG_FS) && (CONFIG_DEBUG_FS == 1)
-#define BTSDIO_INFO_RAW(p, l, fmt, ...)						\
-	do {									\
-		{			\
-			int raw_count = 0;					\
-			const unsigned char *ptr = p;				\
-			pr_info("[btmtk_info] "fmt, ##__VA_ARGS__);		\
-			for (raw_count = 0; raw_count <= l; ++raw_count) {	\
-				pr_info(" %02X", ptr[raw_count]);		\
-			}							\
-			pr_info("\n");						\
-		}								\
-	} while (0)
+#define BTMTK_MAX_LOG_LEN		64	/* default length setting */
 
-#define BTSDIO_DEBUG_RAW(p, l, fmt, ...)						\
-	do {									\
-		{			\
-			int raw_count = 0;					\
-			const unsigned char *ptr = p;				\
-			pr_debug("[btmtk_info] "fmt, ##__VA_ARGS__);		\
-			for (raw_count = 0; raw_count <= l; ++raw_count) {	\
-				pr_debug(" %02X", ptr[raw_count]);		\
-			}							\
-			pr_debug("\n");						\
-		}								\
-	} while (0)
+#define BTSDIO_INFO_RAW(p, l, fmt, ...)					\
+do {												\
+		int raw_count = 0;								\
+		char str[BTMTK_MAX_LOG_LEN * 3 + 1];						\
+		char *p_str = str;								\
+		const unsigned char *ptr = p;							\
+		for (raw_count = 0; raw_count < MIN(l, BTMTK_MAX_LOG_LEN); ++raw_count) 	\
+			p_str += sprintf(p_str, " %02X", ptr[raw_count]);			\
+		*p_str = '\0';									\
+		pr_info("[btmtk_info]"fmt"\n", ##__VA_ARGS__);					\
+		pr_info(" %s:%d - Length(%d): %s\n", __func__, __LINE__, (int)l, str);		\
+} while (0)
 
-#else /* CONFIG_DEBUG_FS */
-#define BTSDIO_INFO_RAW(p, l, fmt, ...)
-
-#define BTSDIO_DEBUG_RAW(p, l, fmt, ...)
-#endif /* CONFIG_DEBUG_FS */
+#define BTSDIO_DEBUG_RAW(p, l, fmt, ...)				\
+do {												\
+		int raw_count = 0;								\
+		char str[BTMTK_MAX_LOG_LEN * 3 + 1];						\
+		char *p_str = str;								\
+		const unsigned char *ptr = p;							\
+		for (raw_count = 0; raw_count < MIN(l, BTMTK_MAX_LOG_LEN); ++raw_count) 	\
+			p_str += sprintf(p_str, " %02X", ptr[raw_count]);			\
+		*p_str = '\0';									\
+		pr_debug("[btmtk_debug]"fmt"\n", ##__VA_ARGS__);				\
+		pr_debug(" %s:%d - Length(%d): %s\n", __func__, __LINE__, (int)l, str);		\
+} while (0)
 
 /**
- *
  * HCI packet type
  */
-#define MTK_HCI_COMMAND_PKT	 0x01
+#define MTK_HCI_COMMAND_PKT		0x01
 #define MTK_HCI_ACLDATA_PKT		0x02
 #define MTK_HCI_SCODATA_PKT		0x03
 #define MTK_HCI_EVENT_PKT		0x04
+
+#define MTK_HCI_WRITE_CR_PKT		0x07
+#define MTK_HCI_READ_CR_PKT		0x08
+
+#define MTK_HCI_READ_CR_PKT_LENGTH	0x05
+#define MTK_HCI_WRITE_CR_PKT_LENGTH	0x09
+
+#define MTK_HCI_CMD_HEADER_LEN	(4)
+#define MTK_HCI_ACL_HEADER_LEN	(5)
+#define MTK_HCI_SCO_HEADER_LEN	(4)
 
 /**
  * Log file path & name, the default path is /sdcard
@@ -90,18 +94,10 @@
 #define PRINT_DUMP_COUNT		20
 #define SYSLOG_FNAME			"bt_sys_log"
 #define FWDUMP_FNAME			"bt_fw_dump"
-#ifdef BTMTK_LOG_PATH
-	#define SYS_LOG_FILE_NAME	(BTMTK_LOG_PATH SYSLOG_FNAME)
-	#define FW_DUMP_FILE_NAME	(BTMTK_LOG_PATH FWDUMP_FNAME)
-#else
-	#define SYS_LOG_FILE_NAME	"/sdcard/"SYSLOG_FNAME
-	#define FW_DUMP_FILE_NAME	"/sdcard/"FWDUMP_FNAME
-#endif /* FW_DUMP_FILE_NAME */
 
-/**
- * SYS control
- */
-#define SYSCTL	0x400000
+char *COREDUMP_FILE_NAME[] = {
+	"/data/misc/bluedroid/"FWDUMP_FNAME, "/sdcard/"FWDUMP_FNAME, "/tmp/"FWDUMP_FNAME
+};
 
 /**
  * WLAN
@@ -132,7 +128,7 @@
 #define DEVICE_VENDOR_REQUEST_OUT	0x40
 #define DEVICE_VENDOR_REQUEST_IN	0xc0
 #define DEVICE_CLASS_REQUEST_OUT	0x20
-#define DEVICE_CLASS_REQUEST_IN	 0xa0
+#define DEVICE_CLASS_REQUEST_IN		0xa0
 
 #define BTUSB_MAX_ISOC_FRAMES	10
 #define BTUSB_INTR_RUNNING	0
@@ -152,11 +148,13 @@
 #define PATCH_PHASE1		1
 #define PATCH_PHASE2		2
 #define PATCH_PHASE3		3
+#define PATCH_LEN_ILM		(192 * 1024)
 
 
 #define USB_IO_BUF_SIZE		(HCI_MAX_EVENT_SIZE > 256 ? HCI_MAX_EVENT_SIZE : 256)
 #define HCI_SNOOP_ENTRY_NUM	30
 #define HCI_SNOOP_BUF_SIZE	32
+#define FW_LOG_PKT		0xFF
 
 /**
  * stpbt device node
@@ -169,16 +167,18 @@
  * fw log queue count
  */
 #define FWLOG_QUEUE_COUNT 200
+#define FWLOG_ASSERT_QUEUE_COUNT 6000
+#define FWLOG_BLUETOOTH_KPI_QUEUE_COUNT 200
 
 /**
  * Maximum rom patch file name length
  */
 #define MAX_BIN_FILE_NAME_LEN 32
 
-
 /**
  *  Firmware version size
  */
-#define FW_VERSION_BUF_SIZE 15	/* 14 bytes for firmware version + 1 bytes for '0' */
+#define FW_VERSION_BUF_SIZE 32	/* 14 bytes for firmware version + 1 bytes for '0' */
+#define FW_VERSION_SIZE 15	/* 14 bytes for firmware version + 1 bytes for '0' */
 
 #endif /* __BTMTK_DEFINE_H__ */

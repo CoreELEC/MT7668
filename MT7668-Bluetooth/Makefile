@@ -2,7 +2,7 @@
 #ARCH=x86
 SDIO_MOD_NAME = bt_mt7668
 SDIO_CFILES := \
-	btmtk_sdio.c btmtk_main.c
+	btmtk_sdio.c btmtk_main.c btif_audio_ts.c
 $(SDIO_MOD_NAME)-objs := $(SDIO_CFILES:.c=.o)
 obj-m := $(SDIO_MOD_NAME).o
 
