@@ -189,6 +189,7 @@ WLAN_STATUS kalFirmwareOpen(IN P_GLUE_INFO_T prGlueInfo, IN PPUINT_8 apucNameTab
 	UINT_8 ucCurEcoVer = wlanGetEcoVersion(prGlueInfo->prAdapter);
 	BOOLEAN fgResult = FALSE;
 	int ret;
+	char fw_path[256] = {0};
 
 	/* Try to open FW binary */
 	for (ucNameIdx = 0; apucNameTable[ucNameIdx]; ucNameIdx++) {
@@ -197,15 +198,17 @@ WLAN_STATUS kalFirmwareOpen(IN P_GLUE_INFO_T prGlueInfo, IN PPUINT_8 apucNameTab
 		* Android path: "/etc/firmware", "/vendor/firmware", "/firmware/image"
 		* Linux path: "/lib/firmware", "/lib/firmware/update"
 		*/
-		ret = REQUEST_FIRMWARE(&fw_entry, apucNameTable[ucNameIdx], prGlueInfo->prDev);
+		strcat(fw_path, "/lib/firmware/");
+		strcat(fw_path, apucNameTable[ucNameIdx]);
+		ret = REQUEST_FIRMWARE(&fw_entry, fw_path, prGlueInfo->prDev);
 
 		if (ret) {
 			DBGLOG(INIT, TRACE, "Request FW image: %s failed, errno[%d]\n",
-			       apucNameTable[ucNameIdx], fgResult);
+			       fw_path, fgResult);
 			RELEASE_FIRMWARE(fw_entry);
 			continue;
 		} else {
-			DBGLOG(INIT, TRACE, "Request FW image: %s done\n", apucNameTable[ucNameIdx]);
+			DBGLOG(INIT, TRACE, "Request FW image: %s done\n", fw_path);
 			fgResult = TRUE;
 			break;
 		}
@@ -4198,23 +4201,26 @@ INT_32 kalRequestFirmware(const PUINT_8 pucPath, PUINT_8 pucData, UINT_32 u4Size
 {
 	const struct firmware *fw;
 	int ret = 0;
+	char fw_path[256] = {0};
 
 	/*
 	* Driver support request_firmware() to get files
 	* Android path: "/etc/firmware", "/vendor/firmware", "/firmware/image"
 	* Linux path: "/lib/firmware", "/lib/firmware/update"
 	*/
-	ret = REQUEST_FIRMWARE(&fw, pucPath, dev);
+	strcat(fw_path, "/lib/firmware/");
+	strcat(fw_path, pucPath);
+	ret = REQUEST_FIRMWARE(&fw, fw_path, dev);
 
 	if (ret != 0) {
-		DBGLOG(INIT, INFO, "kalRequestFirmware %s Fail, errno[%d]!!\n", pucPath, ret);
+		DBGLOG(INIT, INFO, "kalRequestFirmware %s Fail, errno[%d]!!\n", fw_path, ret);
 		pucData = NULL;
 		*pu4ReadSize = 0;
 		release_firmware(fw);
 		return ret;
 	}
 
-	DBGLOG(INIT, INFO, "kalRequestFirmware(): %s OK\n", pucPath);
+	DBGLOG(INIT, INFO, "kalRequestFirmware(): %s OK\n", fw_path);
 
 	if (fw->size < u4Size)
 		u4Size = fw->size;
