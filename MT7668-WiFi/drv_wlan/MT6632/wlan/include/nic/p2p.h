@@ -128,7 +128,6 @@
 	{ \
 		if (!(_exp)) { \
 			ASSERT(FALSE); \
-			break; \
 		} \
 	}
 
