@@ -3317,6 +3317,16 @@ SKIP_DUMP:
 		}
 		
 		fops_skb->len = buf_len;
+
+		/* Drop BLE Advertising Reports to prevent memory leak */
+		if (type == HCI_EVENT_PKT && fops_skb->data[0] == 0x3E) {
+			kfree_skb(fops_skb);
+			kfree_skb(skb);
+			skb = NULL;
+			goto exit;
+		}
+
+		/* Queue other events normally */
 		LOCK_UNSLEEPABLE_LOCK(&(metabuffer.spin_lock));
 		skb_queue_tail(&g_priv->adapter->fops_queue, fops_skb);
 		if (skb_queue_empty(&g_priv->adapter->fops_queue))
