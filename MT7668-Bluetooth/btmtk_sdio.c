@@ -3896,7 +3896,7 @@ static int btmtk_sdio_set_card_clkpd(int on)
 static int btmtk_sdio_toggle_rst_pin(void)
 {
 	uint32_t pmu_en_delay = MT76x8_PMU_EN_DEFAULT_DELAY;
-	int pmu_en;
+	int pmu_en, bt_en;
 	struct device *prDev;
 
 	if (g_card == NULL) {
@@ -3912,11 +3912,24 @@ static int btmtk_sdio_toggle_rst_pin(void)
 		return -1;
 	}
 	pmu_en = of_get_named_gpio(prDev->of_node, MT76x8_PMU_EN_PIN_NAME, 0);
-	pr_info("%s pmu_en %d\n", __func__, pmu_en);
+	bt_en = of_get_named_gpio(prDev->of_node, MT76x8_BT_EN_PIN_NAME, 0);
+	pr_info("%s pmu_en %d bt_en %d\n", __func__, pmu_en, bt_en);
 	if (gpio_is_valid(pmu_en)) {
+		if (gpio_is_valid(bt_en))
+			gpio_direction_output(bt_en, 0);
+
 		gpio_direction_output(pmu_en, 0);
 		mdelay(pmu_en_delay);
 		gpio_direction_output(pmu_en, 1);
+
+		/*
+		 * Some MT7668 SDIO combo designs expose a separate Bluetooth-enable
+		 * GPIO. Toggle it with the PMU reset when present so both functions of
+		 * the combo chip restart from the same power edge.
+		 */
+		if (gpio_is_valid(bt_en))
+			gpio_direction_output(bt_en, 1);
+
 		pr_info("%s: %s pull low/high done\n", __func__,
 				MT76x8_PMU_EN_PIN_NAME);
 	} else {

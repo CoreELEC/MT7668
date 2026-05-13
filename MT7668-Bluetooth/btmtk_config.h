@@ -84,6 +84,7 @@
  * Support toggle GPIO
  */
 #define MT76x8_PMU_EN_PIN_NAME		"mt76x8_pmu_en_gpio"
+#define MT76x8_BT_EN_PIN_NAME		"mt76x8_bt_en_gpio"
 #define MT76x8_PMU_EN_DELAY_NAME	"mt76x8_pmu_en_delay"
 #define MT76x8_PMU_EN_DEFAULT_DELAY	(5) /* Default delay 5ms */
 
