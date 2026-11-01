@@ -4339,10 +4339,12 @@ static int btmtk_sdio_probe(struct sdio_func *func,
 
 	hdev->bus = HCI_SDIO;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6,10,0))
 	if (id->class == SDIO_CLASS_BT_AMP)
 		hdev->dev_type = HCI_AMP;
 	else
 		hdev->dev_type = HCI_PRIMARY;
+#endif
 		
 	SET_HCIDEV_DEV(hdev, &func->dev);
 
@@ -5859,7 +5861,11 @@ static int BTMTK_init(void)
 	pr_info("%s driver(major %d) installed.\n",
 			"BT_chrdevfwlog", BT_majorfwlog);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0))
+	pBTClass = class_create("BT_chrdev");
+#else
 	pBTClass = class_create(THIS_MODULE, "BT_chrdev");
+#endif
 	if (IS_ERR(pBTClass)) {
 		pr_err("class create fail, error code(%ld)\n",
 			PTR_ERR(pBTClass));

@@ -1,3 +1,4 @@
+#include <linux/version.h>
 #include "btif_audio_ts.h"
 
 #include <linux/device.h>
@@ -195,7 +196,11 @@ int btif_ts_init(void)
 	}
 
 	/* Register the device class */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6,4,0))
+	g_dev_class = class_create(CLASS_NAME);
+#else
 	g_dev_class = class_create(THIS_MODULE, CLASS_NAME);
+#endif
 	if (IS_ERR(g_dev_class)) {
 		unregister_chrdev(g_major_num, DEVICE_NAME);
 		pr_alert("BTTS: failed to register device class\n");
