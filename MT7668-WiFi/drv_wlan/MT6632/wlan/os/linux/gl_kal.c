@@ -932,10 +932,14 @@ WLAN_STATUS kalRxIndicateOnePkt(IN P_GLUE_INFO_T prGlueInfo, IN PVOID pvPkt)
 		kal_skb_reset_mac_len(prSkb);
 	}
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+	netif_rx(prSkb);
+#else
 	if (!in_interrupt())
 		netif_rx_ni(prSkb);	/* only in non-interrupt context */
 	else
 		netif_rx(prSkb);
+#endif
 
 	return WLAN_STATUS_SUCCESS;
 }
@@ -4055,7 +4059,9 @@ UINT_8 kalGetRsnIeMfpCap(IN P_GLUE_INFO_T prGlueInfo)
 struct file *kalFileOpen(const char *path, int flags, int rights)
 {
 	struct file *filp = NULL;
+#ifdef get_fs
 	mm_segment_t oldfs;
+#endif
 	int err = 0;
 
 #ifdef get_fs
@@ -4080,7 +4086,9 @@ VOID kalFileClose(struct file *file)
 
 UINT_32 kalFileRead(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size)
 {
+#ifdef get_fs
 	mm_segment_t oldfs;
+#endif
 	int ret;
 
 #ifdef get_fs
@@ -4098,7 +4106,9 @@ UINT_32 kalFileRead(struct file *file, unsigned long long offset, unsigned char 
 
 UINT_32 kalFileWrite(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size)
 {
+#ifdef get_fs
 	mm_segment_t oldfs;
+#endif
 	int ret;
 
 #ifdef get_fs

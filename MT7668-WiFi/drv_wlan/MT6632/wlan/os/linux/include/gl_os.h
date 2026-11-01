@@ -162,6 +162,7 @@
 #include <linux/ctype.h>
 
 #include <linux/interrupt.h>
+#include <linux/sched/clock.h>
 
 #if defined(_HIF_USB)
 #include <linux/usb.h>

@@ -2232,8 +2232,7 @@ static void nicTxDirectTimerCheckSkbQWrapper(struct timer_list *timer)
 {
 	P_ADAPTER_T prAdapter =
 		container_of(timer, ADAPTER_T, rTxDirectSkbTimer);
-	P_GLUE_INFO_T prGlueInfo =
-		container_of(prAdapter, GLUE_INFO_T, prAdapter);
+	P_GLUE_INFO_T prGlueInfo = prAdapter->prGlueInfo;
 
 	nicTxDirectTimerCheckSkbQ((unsigned long) prGlueInfo);
 }
@@ -2243,8 +2242,7 @@ static void nicTxDirectTimerCheckHifQWrapper(struct timer_list *timer)
 {
 	P_ADAPTER_T prAdapter =
 		container_of(timer, ADAPTER_T, rTxDirectHifTimer);
-	P_GLUE_INFO_T prGlueInfo =
-		container_of(prAdapter, GLUE_INFO_T, prAdapter);
+	P_GLUE_INFO_T prGlueInfo = prAdapter->prGlueInfo;
 
 	nicTxDirectTimerCheckHifQ((unsigned long) prGlueInfo);
 }
